@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rua a Rua</title>
+<meta name="description" content="Discover Porto street by street.">
+<link rel="stylesheet" href="https://use.typekit.net/czr5nwu.css">
+<link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+<main class="screen" id="start">
+ <button class="tx go" id="rand" type="button">find your way through porto<span class="arr" aria-hidden="true">&gt;</span></button>
+ <!-- vorerst ausgeblendet: Start am Plakat-Standort und Namenssuche (kommt im nächsten Schritt) -->
+ <div hidden>
+  <div id="hereBox"><button id="here" type="button">start from <span id="hereName"></span></button></div>
+  <button id="pick" type="button" aria-expanded="false" aria-controls="search">choose a street</button>
+  <div id="search"><label for="q">street name</label><input id="q" type="search" autocomplete="off"><ul id="hits"></ul></div>
+ </div>
+</main>
+
+<section class="screen" id="tree" hidden>
+ <div class="stage" id="stage"><svg class="lines" aria-hidden="true"></svg></div>
+ <footer class="bar bottom"><span id="km"></span><button class="tx" id="fin" type="button" hidden>Start walking</button></footer>
+ <div class="sheet off" id="sheet" role="dialog" aria-labelledby="shName">
+  <p class="nm" id="shName"></p>
+  <p id="shKat"></p>
+  <p id="shBn"></p>
+  <p id="shCh"></p>
+  <p id="shLen"></p>
+  <p class="soft" id="shEnd" hidden>No way on from this street. Your walk would end here.</p>
+  <div class="row"><button class="tx" id="shGo" type="button">Choose</button></div>
+ </div>
+</section>
+
+<section class="screen" id="result" hidden>
+ <header class="bar top"><span class="ttl">Porto</span><span class="rt"><span class="saved" id="note" role="status"></span><button class="tx" id="saveImg" type="button">Save</button></span></header>
+ <div class="res-in">
+  <div class="drawing" id="drawing"></div>
+  <ol class="list" id="list"></ol>
+  <ul class="legend" id="legend" aria-label="Line forms"></ul>
+ </div>
+ <footer class="bar bottom"><span id="rKm"></span><button class="tx" id="again" type="button">Find new way</button></footer>
+</section>
+
+<div class="shot" id="shot" hidden>
+ <img id="shotImg" alt="Your walk through Porto">
+ <p>Press and hold the image to save it.</p>
+ <button class="tx" id="shotClose" type="button">Close</button>
+</div>
+
+<section class="screen" id="card" hidden>
+ <div class="card-tools"><button class="tx" id="back" type="button">back</button><button class="tx" id="pdf" type="button">save pdf</button></div>
+ <div class="card-wrap">
+  <div class="pc" id="pc" tabindex="0" role="button" aria-label="Postcard. Tap to turn it over.">
+   <div class="pc-in"><div class="face front" id="front"></div><div class="face back" id="backFace"></div></div>
+  </div>
+  <button class="tx" id="flip" type="button">turn over</button>
+  <p class="note" id="note2" role="status"></p>
+ </div>
+</section>
+
+<script src="vendor/jspdf.umd.min.js"></script>
+<script type="module" src="app.js?v=3"></script>
+</body>
+</html>
