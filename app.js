@@ -170,16 +170,18 @@ function place(labs){
  const [rx,ry]=rootPt(), W=tree.clientWidth, H0=tree.clientHeight, n=labs.length;
  const reserve=Math.max(0,Math.min(120,ry+42-(H0-222)+14)), top=Math.max(48,H0*0.07)+reserve, maxR=ry-top-24, H=30, P=4;
  const spread=n===1?0:Math.min(W/2-40,180+n*25);
- const tiers=shuffle([1,.68,.4]);
+ // Höhen gleichmäßig über den ganzen freien Raum verteilen (oben bis knapp über der Wurzel), damit nichts zusammenklebt, wenn Platz da ist
+ const lo=Math.min(.42,Math.max(.3,90/Math.max(1,maxR)));
+ const tiers=shuffle(Array.from({length:n},(_,i)=>n===1?.8:1-(1-lo)*i/(n-1)));
  const rects=[],segs=[],out=[];
  const rr=rootLab?rootLab.getBoundingClientRect():null, tr=tree.getBoundingClientRect();
  if(rr)rects.push([rr.left-tr.left-P,rr.top-tr.top-P,rr.right-tr.left+P,rr.bottom-tr.top+P]);
  labs.forEach((lab,k)=>{
   lab.classList.add('b');const w=lab.offsetWidth;lab.classList.remove('b');lab.style.minWidth=w+'px';lab.style.textAlign='center';   // Breite des fetten Schnitts reservieren: Auswahl (fett) verschiebt nichts
   const ix=rx+(n===1?0:(-1+2*k/(n-1)))*spread+(Math.random()-.5)*16;
-  const iy=ry-maxR*(tiers[k%3]+(Math.random()-.5)*.06);
+  const iy=ry-maxR*(tiers[k]+(Math.random()-.5)*.04);
   const c=[];
-  for(let x=12+w/2;x<=W-12-w/2;x+=14)for(let y=top+H;y<=ry-46;y+=10)c.push([x,y,(x-ix)**2+(y-iy)**2*1.6]);
+  for(let x=12+w/2;x<=W-12-w/2;x+=14)for(let y=top+H;y<=ry-46;y+=10)c.push([x,y,(x-ix)**2+(y-iy)**2*3]);
   c.sort((a,b)=>a[2]-b[2]);
   let best=null;
   for(const [x,y] of c){
@@ -256,7 +258,7 @@ function liftTree(){
  // so weit nach oben, wie die Karte es braucht, aber nie so weit, dass der oberste Name aus dem Bild rutscht
  const calc=()=>{const [,ry]=rootPt(),need=ry+42+14-(tree.clientHeight-sheet.offsetHeight);
   let top=1e9;stage.querySelectorAll('.lab').forEach(l=>{if(!l.classList.contains('out')&&!l.classList.contains('root'))top=Math.min(top,parseFloat(l.style.top)-l.offsetHeight-2);});
-  return [need,top===1e9?need:Math.max(0,top-6)];};
+  return [need,top===1e9?need:Math.max(0,top+2)];};
  let [need,room]=calc();
  if(need>room+1){sheet.classList.add('tight');[need,room]=calc();}   // reicht der Platz nicht: "Named after" auf zwei Zeilen kürzen
  stage.style.transform=need>0?'translateY('+(-Math.min(need,room))+'px)':'';
