@@ -58,6 +58,9 @@ const fold=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const SCREENS=['start','tree','result','card'];
 const show=id=>SCREENS.forEach(s=>$(s).hidden=s!==id);
 const canWalk=i=>S[i].a.length>0;
+/* Beide Schnitte (regular + bold) vorladen: Die Namen werden mit der Breite des fetten Schnitts platziert; ist die Schrift noch nicht da, stimmen die Breiten später nicht und Texte überlagern sich */
+const FONTS=Promise.all(['400','700'].flatMap(w=>['viroqua','"Source Serif 4"'].map(f=>document.fonts?document.fonts.load(w+' 15px '+f):0))).catch(()=>{});
+const fontsReady=()=>Promise.race([FONTS,new Promise(r=>setTimeout(r,2500))]);
 
 /* ---------- Linienformen pro Kategorie (Leas Entwurf) ---------- */
 // Jede Form liefert Teilstriche {p:[[x,y],…], w:Stärke-Faktor, d:Strichmuster, r:runde Enden}; u = Grundeinheit
@@ -140,7 +143,7 @@ function drawRoute(path,VW,VH,U,fs,opts={}){
 }
 
 /* ---------- Zustand ---------- */
-let path=[], opts=[], rootLab=null, busy=false, sheetFor=null, WALK=null;
+let path=[], opts=[], rootLab=null, busy=false, sheetFor=null, WALK=null, beginId=0;
 const tree=$('tree'), stage=$('stage'), lines=tree.querySelector('svg.lines');
 const TRANSITION=true;   // Animation Baum -> Ergebnis (auf false setzen, um sie auszuschalten)
 
@@ -165,14 +168,14 @@ function rootPt(){const H=tree.clientHeight,W=tree.clientWidth;return [W/2, H*(W
 // Platziert Namen ohne Überschneidung: jeder Name sucht die freie Stelle, die seiner Ideal-Position am nächsten liegt
 function place(labs){
  const [rx,ry]=rootPt(), W=tree.clientWidth, H0=tree.clientHeight, n=labs.length;
- const reserve=Math.max(0,Math.min(100,ry+42-(H0-205)+14)), top=Math.max(48,H0*0.07)+reserve, maxR=ry-top-24, H=30, P=4;
+ const reserve=Math.max(0,Math.min(120,ry+42-(H0-222)+14)), top=Math.max(48,H0*0.07)+reserve, maxR=ry-top-24, H=30, P=4;
  const spread=n===1?0:Math.min(W/2-40,180+n*25);
  const tiers=shuffle([1,.68,.4]);
  const rects=[],segs=[],out=[];
  const rr=rootLab?rootLab.getBoundingClientRect():null, tr=tree.getBoundingClientRect();
  if(rr)rects.push([rr.left-tr.left-P,rr.top-tr.top-P,rr.right-tr.left+P,rr.bottom-tr.top+P]);
  labs.forEach((lab,k)=>{
-  lab.classList.add('b');const w=lab.offsetWidth;lab.classList.remove('b');
+  lab.classList.add('b');const w=lab.offsetWidth;lab.classList.remove('b');lab.style.minWidth=w+'px';lab.style.textAlign='center';   // Breite des fetten Schnitts reservieren: Auswahl (fett) verschiebt nichts
   const ix=rx+(n===1?0:(-1+2*k/(n-1)))*spread+(Math.random()-.5)*16;
   const iy=ry-maxR*(tiers[k%3]+(Math.random()-.5)*.06);
   const c=[];
@@ -192,7 +195,8 @@ function place(labs){
  return out;
 }
 function updBar(){$('km').textContent=fmtKm(lenOf(route(path)));$('fin').hidden=path.length<2;}
-function begin(i){
+async function begin(i){
+ const me=++beginId;
  path=[i];WALK=null;hideSheet();
  lines.innerHTML='';tree.querySelectorAll('.lab').forEach(e=>e.remove());
  show('tree');
@@ -200,7 +204,10 @@ function begin(i){
  const [rx,ry]=rootPt();rootLab.style.left=rx+'px';rootLab.style.top=ry+'px';
  rootLab.onclick=e=>{e.stopPropagation();openSheet(path[path.length-1],null,rootLab);};
  stage.appendChild(rootLab);
- updBar();busy=false;growOptions();
+ updBar();busy=true;
+ await fontsReady();   // erst platzieren, wenn die Schrift da ist
+ if(me!==beginId||tree.hidden)return;
+ busy=false;growOptions();
 }
 function growOptions(){
  const cur=path[path.length-1];
@@ -224,7 +231,9 @@ function growOptions(){
   requestAnimationFrame(()=>{ln.style.transition='stroke-dashoffset .7s cubic-bezier(.3,.7,.2,1) '+(k*st)+'s, opacity .4s ease';ln.style.strokeDashoffset=0;
    setTimeout(()=>lab.classList.add('in'),350+k*st*1000);});
   // Tippen auf einen Namen zeigt seine Infos; auch wenn schon eine andere Info offen ist
-  lab.onclick=e=>{e.stopPropagation();if(!busy)openSheet(i,k,lab);};
+  lab.onclick=e=>{e.stopPropagation();if(busy)return;
+   if(sheetFor===k&&!$('sheet').classList.contains('off')){hideSheet();choose(k);return;}   // erster Tipp zeigt die Info, zweiter Tipp auf denselben Namen wählt die Straße
+   openSheet(i,k,lab);};
   opts.push({i,lab,ln});
  });
 }
@@ -243,8 +252,14 @@ function openSheet(i,k,lab){
 }
 // Beim Öffnen der Info rückt der ganze Baum nach oben, damit Wurzel und Striche über der Karte bleiben (nichts wird abgeschnitten)
 function liftTree(){
- const [,ry]=rootPt(), sh=$('sheet').offsetHeight, need=ry+42+14-(tree.clientHeight-sh);
- stage.style.transform=need>0?'translateY('+(-Math.min(need,130))+'px)':'';
+ const sheet=$('sheet');sheet.classList.remove('tight');
+ // so weit nach oben, wie die Karte es braucht, aber nie so weit, dass der oberste Name aus dem Bild rutscht
+ const calc=()=>{const [,ry]=rootPt(),need=ry+42+14-(tree.clientHeight-sheet.offsetHeight);
+  let top=1e9;stage.querySelectorAll('.lab').forEach(l=>{if(!l.classList.contains('out')&&!l.classList.contains('root'))top=Math.min(top,parseFloat(l.style.top)-l.offsetHeight-2);});
+  return [need,top===1e9?need:Math.max(0,top-6)];};
+ let [need,room]=calc();
+ if(need>room+1){sheet.classList.add('tight');[need,room]=calc();}   // reicht der Platz nicht: "Named after" auf zwei Zeilen kürzen
+ stage.style.transform=need>0?'translateY('+(-Math.min(need,room))+'px)':'';
 }
 function hideSheet(){$('sheet').classList.add('off');stage.style.transform='';tree.querySelectorAll('.lab').forEach(l=>l.classList.remove('sel'));sheetFor=null;}
 // Tippen außerhalb (leere Fläche) schließt die Info
@@ -277,7 +292,8 @@ $('fin').onclick=e=>{e.stopPropagation();if(!busy)finish();};
 /* ---------- Dein Weg ---------- */
 function closeItems(){
  $('list').querySelectorAll('li').forEach(x=>{x.classList.remove('open');x.querySelector('.more').hidden=true;x.querySelector('.head').setAttribute('aria-expanded','false');});
- $('drawing').classList.remove('focus');$('list').classList.remove('focus');$('drawing').querySelectorAll('g.street').forEach(g=>g.classList.remove('on'));
+ $('drawing').classList.remove('focus');$('list').classList.remove('focus');$('legend').classList.remove('focus');
+ $('list').querySelectorAll('li').forEach(x=>x.classList.remove('hl'));$('legend').querySelectorAll('li').forEach(x=>x.classList.remove('on'));$('drawing').querySelectorAll('g.street').forEach(g=>g.classList.remove('on'));
 }
 /* ---------- Legende: nur die Linienformen, die im Weg vorkommen (Reihenfolge wie in Leas Legende) ---------- */
 const KAT_ORDER=['Macht','Kultur','Wissen','Seefahrt','Glaube','Orte','Natur','Ursprung','Sonstiges'];
@@ -291,7 +307,7 @@ function legendSample(kat,Lw,u,pad){
 // Wie auf dem Plakat: Linie oben, Name darunter, die Linie ist so breit wie der Name; mehrere nebeneinander (umbrechen bei Platzmangel)
 function buildLegend(path){
  const lg=$('legend');lg.innerHTML='';const u=.95;
- const items=legendCats(path).map(kat=>{const li=el('li'),sp=el('span',null,KAT[kat]);li.appendChild(sp);lg.appendChild(li);return {kat,li,sp};});
+ const items=legendCats(path).map(kat=>{const li=el('li'),sp=el('span',null,KAT[kat]);li.dataset.kat=kat;li.appendChild(sp);lg.appendChild(li);return {kat,li,sp};});
  items.forEach(x=>{x.Lw=Math.max(36,Math.ceil(x.sp.getBoundingClientRect().width));x.sm=legendSample(x.kat,x.Lw,u,6);});
  const H=Math.max(16,...items.map(x=>x.sm.h));   // gleiche Höhe, damit alle Namen auf einer Linie stehen
  items.forEach(x=>{
@@ -306,16 +322,18 @@ function finish(){
  if(animate)resEl.classList.add('anim');   // vorher verstecken: keine Namen vor dem Ende der Animation
  hideSheet();show('result');resEl.scrollTop=0;$('note').textContent='';box.innerHTML='';box.classList.remove('focus');
  // Zeichnung in voller Breite; die Straßenliste darunter scrollt
+ buildLegend(path);   // zuerst, damit die Karte weiß, wie viel Platz die Legende braucht
  const W0=Math.min(640,resEl.clientWidth-32)||360, phone=W0<600;
  const VW=phone?1000:1480, VH=phone?1180:1050;
- const dw=W0, k=dw/VW, U=0.95/k;
+ // Karte und Legende stehen fest, nur die Liste scrollt: die Karte nimmt den Platz, den Legende und mindestens vier Listenzeilen lassen
+ const room=resEl.querySelector('.res-in').clientHeight-$('legend').offsetHeight-20-84;
+ const dw=Math.min(W0,Math.max(160,room)*VW/VH), k=dw/VW, U=0.95/k;
  box.style.width=dw+'px';
  const R=drawRoute(path,VW,VH,U,10/k);
  if(animate)R.svg.classList.add('hide-nr');   // Zahlen von Anfang an unsichtbar (kein Ausblenden sichtbar)
  box.appendChild(R.svg);WALK={path:path.slice(),km:R.km};
  WALK.blobP=walkImage().catch(()=>null);   // Bild schon vorbereiten, damit "save" sofort reagiert
  $('rKm').textContent=fmtKm(R.km);
- buildLegend(path);
  {const p0=WALK.path;if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(WALK&&WALK.path===p0)buildLegend(p0);});}   // nochmal, wenn die Schrift geladen ist (Breite der Namen)
  const ol=$('list');ol.innerHTML='';ol.classList.remove('focus');
  const items=[];
@@ -323,7 +341,8 @@ function finish(){
   if(resEl.classList.contains('anim'))return;
   const it=items[k],open=it.more.hidden;closeItems();
   if(open){it.li.classList.add('open');it.more.hidden=false;it.b.setAttribute('aria-expanded','true');
-   box.classList.add('focus');$('list').classList.add('focus');box.querySelectorAll('g.street').forEach(g=>g.classList.toggle('on',+g.dataset.k===k));
+   box.classList.add('focus');$('list').classList.add('focus');$('legend').classList.add('focus');box.querySelectorAll('g.street').forEach(g=>g.classList.toggle('on',+g.dataset.k===k));
+   {const kat=KAT[S[WALK.path[k]].kat];$('legend').querySelectorAll('li').forEach(l=>l.classList.toggle('on',KAT[l.dataset.kat]===kat));}   // Linienform der gewählten Straße bleibt in der Legende schwarz
    try{it.li.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){}}
  }
  path.forEach((si,k)=>{
@@ -379,6 +398,17 @@ function assemble(R,U,done){
 }
 // Tippen außerhalb schließt die aufgeklappte Straße
 $('result').addEventListener('click',e=>{if(!e.target.closest('.list li.open'))closeItems();});
+// Tipp auf einen Eintrag der Legende: alle Straßen dieser Kategorie schwarz (Karte und Liste), der Rest blass; nochmal tippen hebt es auf
+$('legend').addEventListener('click',e=>{
+ const li=e.target.closest('li');if(!li||!WALK||$('result').classList.contains('anim'))return;
+ e.stopPropagation();
+ const was=li.classList.contains('on')&&!$('list').querySelector('li.open');
+ closeItems();if(was)return;
+ const kat=li.dataset.kat;
+ $('drawing').classList.add('focus');$('list').classList.add('focus');$('legend').classList.add('focus');li.classList.add('on');
+ $('drawing').querySelectorAll('g.street').forEach(g=>g.classList.toggle('on',S[WALK.path[+g.dataset.k]].kat===kat));
+ $('list').querySelectorAll(':scope>li').forEach((x,k)=>x.classList.toggle('hl',S[WALK.path[k]].kat===kat));
+});
 $('again').onclick=e=>{e.stopPropagation();show('start');};
 
 /* Bild zum Mitnehmen: Handy-Hochformat, Weg oben, nummerierte Straßenliste unten */

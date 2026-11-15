@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Rua a Rua</title>
 <meta name="description" content="Discover Porto street by street.">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Rua a Rua">
+<meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="https://use.typekit.net/czr5nwu.css">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <main class="screen" id="start">
@@ -28,7 +33,7 @@
   <p id="shBn"></p>
   <p id="shCh"></p>
   <p id="shLen"></p>
-  <p class="soft" id="shEnd" hidden>No way on from this street. Your walk would end here.</p>
+  <p class="soft" id="shEnd" hidden>Dead end: your walk would end here.</p>
   <div class="row"><button class="tx" id="shGo" type="button">Choose</button></div>
  </div>
 </section>
@@ -61,6 +66,6 @@
 </section>
 
 <script src="vendor/jspdf.umd.min.js"></script>
-<script type="module" src="app.js?v=3"></script>
+<script type="module" src="app.js?v=9"></script>
 </body>
 </html>
