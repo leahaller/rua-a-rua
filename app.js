@@ -323,18 +323,6 @@ function finish(){
  hideSheet();show('result');resEl.scrollTop=0;$('note').textContent='';box.innerHTML='';box.classList.remove('focus');
  // Zeichnung in voller Breite; die Straßenliste darunter scrollt
  buildLegend(path);   // zuerst, damit die Karte weiß, wie viel Platz die Legende braucht
- const W0=Math.min(640,resEl.clientWidth-32)||360, phone=W0<600;
- const VW=phone?1000:1480, VH=phone?1180:1050;
- // Karte und Legende stehen fest, nur die Liste scrollt: die Karte nimmt den Platz, den Legende und mindestens vier Listenzeilen lassen
- const room=resEl.querySelector('.res-in').clientHeight-$('legend').offsetHeight-20-84;
- const dw=Math.min(W0,Math.max(160,room)*VW/VH), k=dw/VW, U=0.95/k;
- box.style.width=dw+'px';
- const R=drawRoute(path,VW,VH,U,10/k);
- if(animate)R.svg.classList.add('hide-nr');   // Zahlen von Anfang an unsichtbar (kein Ausblenden sichtbar)
- box.appendChild(R.svg);WALK={path:path.slice(),km:R.km};
- WALK.blobP=walkImage().catch(()=>null);   // Bild schon vorbereiten, damit "save" sofort reagiert
- $('rKm').textContent=fmtKm(R.km);
- {const p0=WALK.path;if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(WALK&&WALK.path===p0)buildLegend(p0);});}   // nochmal, wenn die Schrift geladen ist (Breite der Namen)
  const ol=$('list');ol.innerHTML='';ol.classList.remove('focus');
  const items=[];
  function toggle(k){
@@ -355,6 +343,20 @@ function finish(){
   b.onclick=e=>{e.stopPropagation();toggle(k);};
   li.appendChild(b);li.appendChild(more);ol.appendChild(li);items.push({li,b,more});
  });
+ const W0=Math.min(640,resEl.clientWidth-32)||360, phone=W0<600;
+ const VW=phone?1000:1480, VH=phone?1180:1050;
+ // Karte und Legende stehen fest, nur die Liste scrollt. Die Liste bekommt so viel Höhe, dass die längste aufgeklappte Straße
+ // (Name + Named after + Art + Länge) immer ganz zu sehen ist, mindestens vier Zeilen; die Karte nimmt den Rest
+ let openH=0;items.forEach(it=>{it.more.hidden=false;openH=Math.max(openH,it.li.offsetHeight);it.more.hidden=true;});
+ const room=resEl.querySelector('.res-in').clientHeight-$('legend').offsetHeight-20-Math.max(84,openH+6);
+ const dw=Math.min(W0,Math.max(160,room)*VW/VH), k=dw/VW, U=0.95/k;
+ box.style.width=dw+'px';
+ const R=drawRoute(path,VW,VH,U,10/k);
+ if(animate)R.svg.classList.add('hide-nr');   // Zahlen von Anfang an unsichtbar (kein Ausblenden sichtbar)
+ box.appendChild(R.svg);WALK={path:path.slice(),km:R.km};
+ WALK.blobP=walkImage().catch(()=>null);   // Bild schon vorbereiten, damit "save" sofort reagiert
+ $('rKm').textContent=fmtKm(R.km);
+ {const p0=WALK.path;if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(WALK&&WALK.path===p0)buildLegend(p0);});}   // nochmal, wenn die Schrift geladen ist (Breite der Namen)
  // Auch ein Tipp auf die Linie der Straße hebt sie hervor und klappt den Text auf
  box.querySelectorAll('g.street').forEach(g=>{g.onclick=e=>{e.stopPropagation();toggle(+g.dataset.k);};});
  if(animate)assemble(R,U,()=>{});
