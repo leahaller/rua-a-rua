@@ -55,8 +55,8 @@ button{background:none;border:0;padding:0;cursor:pointer}
 .sheet .row{height:60px;display:flex;justify-content:flex-end;align-items:center}
 
 /* Dein Weg */
-/* Karte und Legende stehen fest, nur die Straßenliste scrollt */
-#result{overflow:hidden;padding:60px var(--gut-r) 60px var(--gut-l)}
+/* Karte und Legende stehen fest, nur die Straßenliste scrollt. cursor:pointer auf #result: iOS meldet sonst Tipps auf leere Flächen nicht, Auswahl (und blasse Legende) bliebe stehen */
+#result{cursor:pointer;overflow:hidden;padding:60px var(--gut-r) 60px var(--gut-l)}
 .res-in{max-width:640px;height:100%;margin:0 auto;display:flex;flex-direction:column;gap:10px;min-height:0}
 #result .bar.top{position:fixed;top:env(safe-area-inset-top,0px)}
 #result .bar.bottom{position:fixed;bottom:env(safe-area-inset-bottom,0px)}
