@@ -440,14 +440,17 @@ async function walkImage(){
  g.drawImage(img,40,150,W-80,(W-80)*VH/VW);
  {const sc=(W-80)/VW;g.font=F(22);g.textAlign='center';g.textBaseline='middle';
   R.nums.forEach(([x,y,t])=>g.fillText(t,40+x*sc,150+y*sc));g.textAlign='left';g.textBaseline='alphabetic';}
- let y=150+(W-80)*VH/VW+60;
+ // Straßenliste unten verankert, direkt über der Legende: wenige Straßen beginnen weiter unten, viele weiter oben
+ const blk=rows.reduce((a,r)=>a+r.sb+10+34,0)+30*(rows.length-1);
+ const legY=Math.max(150+(W-80)*VH/VW+60+n*ROW+50,H-85-blk);   // Legende ganz unten, gleicher Randabstand wie Porto/km oben
+ let y=legY-50-n*ROW;
  WALK.path.forEach((si,k)=>{
   g.font=F(22);g.fillStyle='#000';g.fillText(String(k+1),72,y+12);
   g.font=F(34);
   let nm=S[si].n;while(g.measureText(nm).width>W-200&&nm.length>4)nm=nm.slice(0,-2);if(nm!==S[si].n)nm+='…';
   g.fillText(nm,110,y+12);y+=ROW;
  });
- {const blk=rows.reduce((a,r)=>a+r.sb+10+34,0)+30*(rows.length-1);y=Math.max(y+50,H-85-blk);}   // Legende ganz unten, gleicher Randabstand wie Porto/km oben
+ y=legY;
  rows.forEach(r=>{
   let ox=72;
   r.forEach(x=>{
